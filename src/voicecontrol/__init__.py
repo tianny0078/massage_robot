@@ -1,1 +1,0 @@
-from .voicecontrol import KittHotword
