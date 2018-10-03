@@ -3,47 +3,96 @@
 import argparse
 import rospy
 import externaldevice
-#from std_msgs.msg import String
+import rospy
+import numpy as np
+import math
+from scipy import interpolate
+import matplotlib.pyplot as plt
+from lowlevelmotion import LowLevelMotion
 from geometry_msgs.msg import Pose, Twist, Wrench
 from intera_core_msgs.msg import EndpointState
+from kitt.msg import Hotword
 
 
 class massager(object):
-    def __init__(self, filename):
+    def __init__(self):
+        # all massage controlling parameters
 	self._count = 0
-        self._recorder = EndeffectorRecorder(filename)
+        self._wayPoint0 = [0, 0.6, 0.06, 1, 0, 0, 0]
+        self._wayPoint1 = [0, 0.6, 0.05, 1, 0, 0, 0]
+        self._wayPoint2 = [0, 0.8, 0.05, 1, 0, 0, 0]
+        self._wayPoint3 = [-0.2, 0.8, 0.05, 1, 0, 0, 0]
+        self._wayPoint4 = [-0.2, 0.6, 0.05, 1, 0, 0, 0]
+        self._wayPoints = [self._wayPoint1, self._wayPoint2, self._wayPoint3, self._wayPoint4]
+        self._wayPoint_pause = [0, 0.6, 0.4, 1, 0, 0, 0]
 
-    def callback(self, data):
+        # define some pattern parameters:
+        self._lift_height = 0.1 # height after one pressure completed
+        self._move_speed = 0.2 # ratio to the max speed
+        self._press_duration = 2 # seconds
+        self._press_force = 20 # the vibrating pressing force, N
+        self._vibration_freq = 100; # vibration frequence
+        self._vibration_repetition = 20; # vibration repetition of one vibration
+        
+        self._arm = LowLevelMotion()
+        
+
+    def keyboardCallback(self, data):
         #rospy.loginfo(rospy.get_caller_id() + 'I heard %f %f %f', data.pose.position.x, 
         #data.pose.position.y, data.pose.position.z)
         c = externaldevice.getch()
         if c:
             if c in ['\x1b', '\x03']:
                 rospy.signal_shutdown("finished")
+            elif c in ['s', 'S']:
+                rospy.loginfo('start!')
+            elif c in ['e', 'E']:
+                rospy.loginfo('stop!')
             else:
                 print(self._count)
-		self._count += 1;
-                # rospy.loginfo(rospy.get_caller_id() + 'I heard %f %f %f', data.pose.position.x,
-                # data.pose.position.y, data.pose.position.z)
-                # print("Save EndEffector Position and Orientation!")
+                self._count += 1
+        # rospy.loginfo(rospy.get_caller_id() + 'I heard %f %f %f', data.pose.position.x,
+        # data.pose.position.y, data.pose.position.z)
+        # print("Save EndEffector Position and Orientation!")
+    
+    def voiceCallback(self, data):
+        if data.control_msg == 'start':
+            # print('start command')
+            self._arm.moveToZero()
+            self._arm.prePress(self._wayPoint1)
+            self._arm.armVibrate(self._wayPoints, self._lift_height, self._move_speed, self._vibration_freq, self._vibration_repetition)
+            # self._arm.moveToPoint(wayPoint_pause)
+        elif data.control_msg == 'pause':
+            # print('pause command')
+            self._arm.moveToPoint(self._wayPoint_pause)
+        else:
+            print('no command')
+    
     def stop(self):
-        self._recorder.stop()
+        # do something
+        print('stop')
 
-    def listener(self):
-
+    def keyboardListener(self):
         # In ROS, nodes are uniquely named. If two nodes with the same
         # name are launched, the previous one is kicked off. The
         # anonymous=True flag means that rospy will choose a unique
         # name for our 'listener' node so that multiple listeners can
         # run simultaneously.
-        rospy.init_node('listener', anonymous=True)
+        rospy.init_node('keyboardlistener', anonymous=True)
+        rospy.Subscriber('/robot/limb/right/endpoint_state', EndpointState, self.keyboardCallback)
+        # spin() simply keeps python from exiting until this node is stopped
+        rospy.spin()
 
-        rospy.Subscriber('/robot/limb/right/endpoint_state', EndpointState, self.callback)
+    def voiceListener(self):
+        rospy.init_node('voicelistener', anonymous=True)
+
+        rospy.Subscriber('/hotword', Hotword, self.voiceCallback)
 
         # spin() simply keeps python from exiting until this node is stopped
         rospy.spin()
 
 if __name__ == '__main__':
+    '''
     epilog = """
     """
     arg_fmt = argparse.RawDescriptionHelpFormatter
@@ -56,9 +105,12 @@ if __name__ == '__main__':
         help='the file name to record to'
     )
     args = parser.parse_args(rospy.myargv()[1:])
+    '''
 
-    helper = massager(args.filename)
-    helper.listener()
+    #helper = massager(args.filename)
+    helper = massager()
+    # helper.keyboardlistener()
+    helper.voiceListener()
     rospy.on_shutdown(helper.stop)
     #externaldevice.getch()
     print 'Done'
