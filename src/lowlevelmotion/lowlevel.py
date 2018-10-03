@@ -3,6 +3,7 @@ import numpy as np
 import math
 from scipy import interpolate
 import matplotlib.pyplot as plt
+import time
 from std_msgs.msg import (
     Float64,
     Header
@@ -31,6 +32,8 @@ from intera_motion_interface import (
     InteractionOptions
 )
 import intera_interface
+from kitt.msg import Hotword
+
 
 # The class is for low level control for sawyer requiring minimum intera SDk
 class LowLevelMotion(object):
@@ -41,6 +44,7 @@ class LowLevelMotion(object):
         self.actualPos = dict(zip(self.jointNames, self.jointAngles)) # Store the actual joint positions of the arm
         self.positioning_pose = Pose() # Store the position of the end effector under specific force
         self.vibration_force = 15
+        self.stop = False
         
     # called by the joint state subscriber
     def joints_callback(self, data):
@@ -135,10 +139,10 @@ class LowLevelMotion(object):
             #    pub.publish(command1)
             #    rate.sleep()
             #rate.sleep()
-            for k in range(0, 10):
-                pub.publish(command2)
-                rate.sleep()
-            rate.sleep()
+            
+            pub.publish(command2)
+            time.sleep(0.1)
+            rate.sleep()#0.01s
 
     # move the arm to zero joint position
     def moveToZero(self):
@@ -256,7 +260,7 @@ class LowLevelMotion(object):
         pub = rospy.Publisher('/robot/limb/right/interaction_control_command', InteractionControlCommand, queue_size=1)
         pub.publish(force_msg)
         sub = rospy.Subscriber('/robot/limb/right/endpoint_state', EndpointState, self.endpoint_callback)
-        rospy.sleep(1)
+        rospy.sleep(2)
         self.exitForceControl()
 
     # convert roll pitch yaw to quaternion
@@ -351,15 +355,12 @@ class LowLevelMotion(object):
     # below are some modularized massage patterns:
 
     # normal press pattern with the waypoints, move_speed, and force specified
-    def normalPress(self, wayPoints, lift_height, move_speed, press_duration):
-        force = [20, 30, 20, 30]
-        self.moveToPoint(wayPoints[0], move_speed)
-        self.forcePress(force[0], press_duration)
-
-        for i in range(4):
-            self.moveToPoint(wayPoints[i], move_speed)
-            self.forcePress(force[i], press_duration)
-            self.lift(wayPoints[i], lift_height)
+    def normalPress(self, wayPoints, lift_height, move_speed, press_duration, force):
+        self.moveToZero()
+        for wayPoint in wayPoints:
+            self.moveToPoint(wayPoint, move_speed)
+            self.forcePress(force, press_duration)
+            self.lift(wayPoint, lift_height)
 
     # slow-speed repeated normal press
     def repeatedPress(self, wayPoints, lift_height, move_speed, repetition, press_duration):
@@ -374,22 +375,38 @@ class LowLevelMotion(object):
                 self.lift(wayPoints[j], 0)
 
     # high-frequency, high-speed lower arm padding pattern
-    def armVibrate(self, wayPoints, lift_height, move_speed, press_frequency, repetition):
+    def armVibrate(self, wayPoints, lift_height, move_speed, press_frequency, repetition, wayPoint_pause=[0, 0.6, 0.4, 1, 0, 0, 0], stop_check=lambda:False):
         # start the high speed vibrating massage:
-        counter = 0
-        self.moveToPoint(wayPoints[0], move_speed)
-        self.positioning_the_endpoint_to_force(10)
+        # self.moveToPoint(wayPoints[0], move_speed)
+        # self.positioning_the_endpoint_to_force(10)
+        #sub = rospy.Subscriber('/hotword', Hotword, self.stop)
+        #if stop_check():
+        if self.stop:
+            self.moveToPoint(wayPoint_pause)
+            return
+
         for wayPoint in wayPoints:
+            #if stop_check():
+            if self.stop:
+                self.moveToPoint(wayPoint_pause)
+                return
             self.moveToPoint(wayPoint, move_speed)
+            #if stop_check():
+            if self.stop:
+                self.moveToPoint(wayPoint_pause)
+                return
             # move to the position specified by the desired force
             self.positioning_the_endpoint_to_force(10)
             # convert the waypoint to joint angles
             joint_angle = self.waypointToJoint(self.positioning_pose)
+            #if stop_check():
+            if self.stop:
+                self.moveToPoint(wayPoint_pause)
+                return
             # vibrate the lower arm
             self.lowerArmBasicMove(joint_angle, move_speed, press_frequency, repetition)
             # lift up the arm
-            self.lift(wayPoints[counter], 0.05)
-            counter = counter+1
+            self.lift(wayPoint, 0.05)
 
     def circularMotion(self, wayPoints, lift_height, move_speed, calibrated):
         counter = 0

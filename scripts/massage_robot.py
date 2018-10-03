@@ -12,17 +12,24 @@ from lowlevelmotion import LowLevelMotion
 from geometry_msgs.msg import Pose, Twist, Wrench
 from intera_core_msgs.msg import EndpointState
 from kitt.msg import Hotword
-
+import signal
 
 class massager(object):
     def __init__(self):
         # all massage controlling parameters
 	self._count = 0
+        '''
         self._wayPoint0 = [0, 0.6, 0.06, 1, 0, 0, 0]
         self._wayPoint1 = [0, 0.6, 0.05, 1, 0, 0, 0]
         self._wayPoint2 = [0, 0.8, 0.05, 1, 0, 0, 0]
         self._wayPoint3 = [-0.2, 0.8, 0.05, 1, 0, 0, 0]
         self._wayPoint4 = [-0.2, 0.6, 0.05, 1, 0, 0, 0]
+        '''
+        self._wayPoint0 = [0, 0.6, 0.35, 1, 0, 0, 0]
+        self._wayPoint1 = [0, 0.6, 0.25, 1, 0, 0, 0]
+        self._wayPoint2 = [0, 0.8, 0.2, 1, 0, 0, 0]
+        self._wayPoint3 = [-0.2, 0.8, 0.2, 1, 0, 0, 0]
+        self._wayPoint4 = [-0.2, 0.6, 0.25, 1, 0, 0, 0]
         self._wayPoints = [self._wayPoint1, self._wayPoint2, self._wayPoint3, self._wayPoint4]
         self._wayPoint_pause = [0, 0.6, 0.4, 1, 0, 0, 0]
 
@@ -55,16 +62,30 @@ class massager(object):
         # data.pose.position.y, data.pose.position.z)
         # print("Save EndEffector Position and Orientation!")
     
-    def voiceCallback(self, data):
+    def voiceControlCallback(self, data):
         if data.control_msg == 'start':
             # print('start command')
+            self._arm.stop = False
             self._arm.moveToZero()
-            self._arm.prePress(self._wayPoint1)
-            self._arm.armVibrate(self._wayPoints, self._lift_height, self._move_speed, self._vibration_freq, self._vibration_repetition)
+            self._arm.prePress(self._wayPoint0)
+            self._arm.armVibrate(self._wayPoints, self._lift_height, self._move_speed, self._vibration_freq, self._vibration_repetition, self._wayPoint_pause)
             # self._arm.moveToPoint(wayPoint_pause)
+        elif data.control_msg == 'controltest':
+            self._arm.stop = False
+            self._arm.normalPress([self._wayPoint0], self._lift_height, self._move_speed, 4, 20)
+        else:
+            print('no command')
+    
+    def voiceInterruptCallback(self, data):
+        if data.control_msg == 'harder':
+            self._arm.vibration_force = 30
+            print('harder')
+        elif data.control_msg == 'lighter':
+            self._arm.vibration_force = 15
+            print('lighter')
         elif data.control_msg == 'pause':
-            # print('pause command')
-            self._arm.moveToPoint(self._wayPoint_pause)
+            self._arm.stop = True
+            print('pause')
         else:
             print('no command')
     
@@ -86,8 +107,8 @@ class massager(object):
     def voiceListener(self):
         rospy.init_node('voicelistener', anonymous=True)
 
-        rospy.Subscriber('/hotword', Hotword, self.voiceCallback)
-
+        rospy.Subscriber('/hotword', Hotword, self.voiceControlCallback)
+        rospy.Subscriber('/hotwordInterrupt', Hotword, self.voiceInterruptCallback)
         # spin() simply keeps python from exiting until this node is stopped
         rospy.spin()
 
