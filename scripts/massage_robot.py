@@ -25,13 +25,15 @@ class massager(object):
         self._wayPoint3 = [-0.2, 0.8, 0.05, 1, 0, 0, 0]
         self._wayPoint4 = [-0.2, 0.6, 0.05, 1, 0, 0, 0]
         '''
-        self._wayPoint0 = [0, 0.6, 0.35, 1, 0, 0, 0]
-        self._wayPoint1 = [0, 0.6, 0.25, 1, 0, 0, 0]
-        self._wayPoint2 = [0, 0.8, 0.2, 1, 0, 0, 0]
-        self._wayPoint3 = [-0.2, 0.8, 0.2, 1, 0, 0, 0]
-        self._wayPoint4 = [-0.2, 0.6, 0.25, 1, 0, 0, 0]
-        self._wayPoints = [self._wayPoint1, self._wayPoint2, self._wayPoint3, self._wayPoint4]
-        self._wayPoint_pause = [0, 0.6, 0.4, 1, 0, 0, 0]
+        self._wayPoint0 = [0, 0.65, 0.35, 1, 0, 0, 0]
+
+        self._wayPoint1 = [0.38, 0.73, 0.25, 1, 0, 0, 0]
+        self._wayPoint2 = [0.32, 0.62, 0.25, 1, 0, 0, 0]
+        self._wayPoint3 = [0.32, 0.73, 0.25, 1, 0, 0, 0]
+        self._wayPoint4 = [0.04, 0.77, 0.25, 1, 0, 0, 0]
+        self._wayPoint5 = [0.1, 0.64, 0.25, 1, 0, 0, 0]
+        self._wayPoints = [self._wayPoint1, self._wayPoint2, self._wayPoint3, self._wayPoint4, self._wayPoint5]
+        self._wayPoint_pause = [0, 0.6, 0.5, 1, 0, 0, 0]
 
         # define some pattern parameters:
         self._lift_height = 0.1 # height after one pressure completed
@@ -69,7 +71,7 @@ class massager(object):
             self._arm.moveToZero()
             self._arm.prePress(self._wayPoint0)
             self._arm.armVibrate(self._wayPoints, self._lift_height, self._move_speed, self._vibration_freq, self._vibration_repetition, self._wayPoint_pause)
-            # self._arm.moveToPoint(wayPoint_pause)
+            self._arm.moveToPoint(self._wayPoint_pause)
         elif data.control_msg == 'controltest':
             self._arm.stop = False
             self._arm.normalPress([self._wayPoint0], self._lift_height, self._move_speed, 4, 20)
@@ -78,10 +80,12 @@ class massager(object):
     
     def voiceInterruptCallback(self, data):
         if data.control_msg == 'harder':
-            self._arm.vibration_force = 30
+            if self._arm.vibration_force < 50: 
+                self._arm.vibration_force += 10
             print('harder')
         elif data.control_msg == 'lighter':
-            self._arm.vibration_force = 15
+            if self._arm.vibration_force > 30:
+                self._arm.vibration_force -= 10
             print('lighter')
         elif data.control_msg == 'pause':
             self._arm.stop = True

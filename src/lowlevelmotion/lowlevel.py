@@ -43,7 +43,7 @@ class LowLevelMotion(object):
         self.jointAngles = [0, 0, 0, 0, 0, 0, 0] 
         self.actualPos = dict(zip(self.jointNames, self.jointAngles)) # Store the actual joint positions of the arm
         self.positioning_pose = Pose() # Store the position of the end effector under specific force
-        self.vibration_force = 15
+        self.vibration_force = 20
         self.stop = False
         
     # called by the joint state subscriber
@@ -260,7 +260,7 @@ class LowLevelMotion(object):
         pub = rospy.Publisher('/robot/limb/right/interaction_control_command', InteractionControlCommand, queue_size=1)
         pub.publish(force_msg)
         sub = rospy.Subscriber('/robot/limb/right/endpoint_state', EndpointState, self.endpoint_callback)
-        rospy.sleep(2)
+        rospy.sleep(2.5)
         self.exitForceControl()
 
     # convert roll pitch yaw to quaternion
