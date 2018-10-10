@@ -27,11 +27,11 @@ class massager(object):
         '''
         self._wayPoint0 = [0, 0.65, 0.35, 1, 0, 0, 0]
 
-        self._wayPoint1 = [0.38, 0.73, 0.25, 1, 0, 0, 0]
-        self._wayPoint2 = [0.32, 0.62, 0.25, 1, 0, 0, 0]
-        self._wayPoint3 = [0.32, 0.73, 0.25, 1, 0, 0, 0]
-        self._wayPoint4 = [0.04, 0.77, 0.25, 1, 0, 0, 0]
-        self._wayPoint5 = [0.1, 0.64, 0.25, 1, 0, 0, 0]
+        self._wayPoint1 = [0.35, 0.73, 0.25, 1, 0, 0, 0]
+        self._wayPoint2 = [0.35, 0.62, 0.25, 1, 0, 0, 0]
+        self._wayPoint3 = [0.02, 0.73, 0.25, 1, 0, 0, 0]
+        self._wayPoint4 = [-0.05, 0.70, 0.25, 1, 0, 0, 0]
+        self._wayPoint5 = [-0.05, 0.55, 0.25, 1, 0, 0, 0]
         self._wayPoints = [self._wayPoint1, self._wayPoint2, self._wayPoint3, self._wayPoint4, self._wayPoint5]
         self._wayPoint_pause = [0, 0.6, 0.5, 1, 0, 0, 0]
 
@@ -74,7 +74,9 @@ class massager(object):
             self._arm.moveToPoint(self._wayPoint_pause)
         elif data.control_msg == 'controltest':
             self._arm.stop = False
-            self._arm.normalPress([self._wayPoint0], self._lift_height, self._move_speed, 4, 20)
+            self._arm.normalPress([self._wayPoint0], 0.05, self._move_speed, 4, 20)
+            self._arm.normalPress([self._wayPoint0], 0.05, self._move_speed, 4, 20)
+            self._arm.normalPress([self._wayPoint0], 0.05, self._move_speed, 4, 20)
         else:
             print('no command')
     

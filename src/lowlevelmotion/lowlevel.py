@@ -356,7 +356,6 @@ class LowLevelMotion(object):
 
     # normal press pattern with the waypoints, move_speed, and force specified
     def normalPress(self, wayPoints, lift_height, move_speed, press_duration, force):
-        self.moveToZero()
         for wayPoint in wayPoints:
             self.moveToPoint(wayPoint, move_speed)
             self.forcePress(force, press_duration)
